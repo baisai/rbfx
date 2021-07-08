@@ -28,6 +28,7 @@ namespace Rml { class ElementDocument; }
 namespace Urho3D
 {
 
+class RmlCanvasComponent;
 struct RmlCanvasResizedArgs;
 struct RmlDocumentReloadedArgs;
 
@@ -72,20 +73,22 @@ public:
     void SetAutoSize(bool enable) { autoSize_ = enable; }
     /// Return true if window automatically resizes based on rml document contents.
     bool GetAutoSize() const { return autoSize_; }
+    /// Return RmlUI subsystem this component renders into.
+    RmlUI* GetUI() const;
 
 protected:
     /// Handle component being added to Node or removed from it.
     void OnNodeSet(Node* node) override;
     /// Open a window document if it was not already open.
-    void OpenInternal(Component* ignoreComponent = nullptr);
+    void OpenInternal();
     /// Close a window document if it was open.
     void CloseInternal();
     /// Resets document_ pointer when window is closed.
-    void OnDocumentClosed(Rml::ElementDocument*& document);
+    void OnDocumentClosed(Rml::ElementDocument* document);
     /// Reposition UI elements on UI canvas resize.
-    void OnUICanvasResized(RmlCanvasResizedArgs& size);
+    void OnUICanvasResized(const RmlCanvasResizedArgs& size);
     /// Handle document pointer changes on resource reload.
-    void OnDocumentReloaded(RmlDocumentReloadedArgs& args);
+    void OnDocumentReloaded(const RmlDocumentReloadedArgs& args);
     /// Handle addition of sibling components.
     void OnComponentAdded(StringHash, VariantMap& args);
     /// Handle removal of sibling components.
@@ -107,7 +110,7 @@ protected:
     /// Use automatic size inherited from rml document.
     bool autoSize_ = true;
     /// Component which holds RmlUI instance containing UI managed by this component. May be null if UI is rendered into default RmlUI subsystem.
-    WeakPtr<Component> uiDestinationComponent_;
+    WeakPtr<RmlCanvasComponent> canvasComponent_;
 };
 
 }

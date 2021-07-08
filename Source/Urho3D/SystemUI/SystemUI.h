@@ -64,6 +64,11 @@ public:
     /// Destruct.
     ~SystemUI() override;
 
+    /// Enable or disable mouse wrapping for current display and window.
+    /// Should be called withing ImGUI window.
+    /// Mouse wrapping is automatically disabled when all mouse buttons are released.
+    void SetMouseWrapping(bool enabled, bool revertMousePositionOnDisable);
+
     /// Add font to imgui subsystem.
     /// \param fontPath a string pointing to TTF font resource.
     /// \param size a font size. If 0 then size of last font is used.
@@ -80,8 +85,10 @@ public:
     void ApplyStyleDefault(bool darkStyle, float alpha);
     /// Hold a reference to this texture until end of frame.
     void ReferenceTexture(Texture2D* texture) { referencedTextures_.push_back(SharedPtr(texture)); }
+#ifndef SWIG    // Due to some quirk SWIG fails to ignore this API.
     /// Return value cache for storing temporary UI state that expires when unused.
     ValueCache& GetValueCache() { return cache_; }
+#endif
     /// When set to true, SystemUI will not consume SDL events and they will be passed to to Input and other subsystems.
     void SetPassThroughEvents(bool enabled) { passThroughEvents_ = enabled; }
     /// Return true if SystemUI is allowing events through even when SystemUI is handling them.
@@ -108,6 +115,12 @@ protected:
     void OnInputEnd(VariantMap& args);
     void OnRenderEnd();
     void OnMouseVisibilityChanged(StringHash, VariantMap& args);
+
+    bool enableWrapping_{};
+    ImVec2 minWrapBound_;
+    ImVec2 maxWrapBound_;
+    bool revertMousePositionOnDisable_{};
+    ImVec2 revertMousePosition_;
 };
 
 /// Convert Color to ImVec4.

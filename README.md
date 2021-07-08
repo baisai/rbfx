@@ -97,13 +97,13 @@ rbfx uses the following third-party libraries:
 - stb_image 2.18 (https://nothings.org)
 - stb_image_write 1.08 (https://nothings.org)
 - stb_rect_pack 0.11 (https://nothings.org)
-- stb_textedit 1.9 (https://nothings.org)
+- stb_textedit 1.13 (https://nothings.org)
 - stb_truetype 1.15 (https://nothings.org)
 - stb_vorbis 1.13b (https://nothings.org)
 - WebP (https://chromium.googlesource.com/webm/libwebp)
 - ETCPACK (https://github.com/Ericsson/ETCPACK)
-- Dear ImGui 1.75+ (https://github.com/ocornut/imgui/tree/docking)
-- tracy (https://bitbucket.org/wolfpld/tracy/)
+- Dear ImGui 1.82 (https://github.com/ocornut/imgui/tree/docking)
+- tracy 0.7.7 (https://bitbucket.org/wolfpld/tracy/)
 - capstone (http://www.capstone-engine.org/)
 - nativefiledialog (https://github.com/mlabbe/nativefiledialog)
 - IconFontCppHeaders (https://github.com/juliettef/IconFontCppHeaders)
@@ -112,7 +112,7 @@ rbfx uses the following third-party libraries:
 - CLI11 v1.5.1 (https://github.com/CLIUtils/CLI11/)
 - fmt 6.0.0 (http://fmtlib.net/)
 - spdlog 1.4.2 (https://github.com/gabime/spdlog/)
-- EASTL 3.16.01 (https://github.com/electronicarts/EASTL/)
+- EASTL 3.17.06 (https://github.com/electronicarts/EASTL/)
 - SWIG 4.0 (http://swig.org/)
 - Embree 3.11 (https://github.com/embree/embree)
 - RmlUi (https://github.com/mikke89/RmlUi)
@@ -122,9 +122,10 @@ rbfx optionally uses the following external third-party libraries:
 
 ## Supported Platforms
 
-| Graphics API/Platform | Windows | Linux | MacOS | iOS | Android | Web |
-| --------------------- |:-------:|:-----:|:-----:|:---:|:-------:|:---:|
-| D3D9 / D3D11          | ✔       |       |       |     |         |     |
-| OpenGL 2 / 3.1        | ✔       | ✔     | ✔     |     |         |     |
-| OpenGL ES 2 / 3       |         |       |       | ✔   | ✔       |     |
-| WebGL                 |         |       |       |     |         | ✔   |
+| Graphics API/Platform | Windows | UWP | Linux | MacOS | iOS | Android | Web |
+| --------------------- |:-------:|:---:|:-----:|:-----:|:---:|:-------:|:---:|
+| D3D9                  | ✔       |     |       |       |     |         |     |
+| D3D11                 | ✔       | ✔   |       |       |     |         |     |
+| OpenGL 2 / 3.1        | ✔       |     | ✔     | ✔     |     |         |     |
+| OpenGL ES 2 / 3       |         |     |       |       | ✔   | ✔       |     |
+| WebGL                 |         |     |       |       |     |         | ✔   |

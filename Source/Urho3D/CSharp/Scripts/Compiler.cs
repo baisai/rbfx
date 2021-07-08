@@ -1,16 +1,11 @@
 using System;
-using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-#if NETFRAMEWORK
-using Microsoft.CSharp;
-#else
 using System.IO;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
-#endif
 
 namespace Urho3DNet
 {
@@ -21,19 +16,19 @@ namespace Urho3DNet
             var scriptRsrcs = new StringList();
             var scriptCodes = new List<string>();
             var sourceFiles = new List<string>();
-            Context.Instance.Cache.Scan(scriptRsrcs, scanPath, "*.cs", Urho3D.ScanFiles, true);
+            Context.Instance.ResourceCache.Scan(scriptRsrcs, scanPath, "*.cs", Urho3D.ScanFiles, true);
             foreach (string fileName in scriptRsrcs)
             {
-                using (File file = Context.Instance.Cache.GetFile(fileName))
+                using (File file = Context.Instance.ResourceCache.GetFile(fileName))
                 {
                     // Gather both paths and code text here. If scripts are packaged we must compile them from
                     // text form. However if we are running a development version of application we prefer to
                     // compile scripts directly from file because then we get proper error locations.
-                    if (file.IsPackaged())
+                    if (file.IsPackaged)
                         scriptCodes.Add(file.ReadString());
                     else
                     {
-                        string path = Context.Instance.Cache.GetResourceFileName(fileName);
+                        string path = Context.Instance.ResourceCache.GetResourceFileName(fileName);
                         path = Urho3D.GetAbsolutePath(path);
                         path = Urho3D.GetNativePath(path);
                         sourceFiles.Add(path);
@@ -45,63 +40,6 @@ namespace Urho3DNet
 
         public static Assembly Compile(IEnumerable<string> sourceFiles, IEnumerable<string> scriptCodes, IEnumerable<string> extraReferences)
         {
-#if NETFRAMEWORK
-            var csc = new CSharpCodeProvider();
-
-            var metadataReferences = new List<string>();
-            metadataReferences.AddRange(AppDomain.CurrentDomain.GetAssemblies()
-                .Where(assembly => assembly.Location.EndsWith(".dll"))
-                .Select(assembly => assembly.Location));
-            if (extraReferences != null)
-                metadataReferences.AddRange(extraReferences);
-
-            var compileParameters = new CompilerParameters(metadataReferences.ToArray())
-            {
-                GenerateExecutable = false,
-                GenerateInMemory = true,
-                TreatWarningsAsErrors = false,
-            };
-
-            CompilerResults results = null;
-            if (scriptCodes?.Count() > 0)
-                results = csc.CompileAssemblyFromSource(compileParameters, scriptCodes.ToArray());
-            else if (sourceFiles?.Count() > 0)
-                results = csc.CompileAssemblyFromFile(compileParameters, sourceFiles.ToArray());
-
-            if (results != null && results.Errors.HasErrors)
-            {
-                foreach (CompilerError error in results.Errors)
-                {
-                    string resourceName = error.FileName;
-                    // ressource paths use lower key c: and '/' as separator and but Windows uses upper key C: and '\'
-                    // using Uri to mitigate that
-                    var resourcePath = new Uri(resourceName);
-                    foreach (string resourceDir in Context.Instance.Cache.ResourceDirs)
-                    {
-                        var resourceDirPath = new Uri(resourceDir);
-                        if (resourceDirPath.IsBaseOf(resourcePath))
-                        {
-                            resourceName = resourceDirPath.MakeRelativeUri(resourcePath).ToString();
-                            break;
-                        }
-                    }
-
-                    string message = $"{resourceName}:{error.Line}:{error.Column}: {error.ErrorText}";
-                    if (error.IsWarning)
-                    { 
-                        Log.Warning(message);
-                    }
-                    else
-                    {
-                        Log.Error(message);
-                        // no compiled assembly is generated when there's an error !
-                        return null;
-                    }
-                }
-            }
-
-            return results?.CompiledAssembly;
-#else
             var syntaxTrees = new List<SyntaxTree>();
 
             if (scriptCodes != null)
@@ -141,7 +79,7 @@ namespace Urho3DNet
                     string resourceName = diagnostic.Location.SourceTree?.FilePath;
                     if (resourceName != null)
                     {
-                        foreach (string resourceDir in Context.Instance.Cache.ResourceDirs)
+                        foreach (string resourceDir in Context.Instance.ResourceCache.ResourceDirs)
                         {
                             if (resourceName.StartsWith(resourceDir))
                             {
@@ -171,7 +109,6 @@ namespace Urho3DNet
                 }
             }
             return null;
-#endif
         }
     }
 }

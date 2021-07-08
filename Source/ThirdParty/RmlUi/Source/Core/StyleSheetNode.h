@@ -70,11 +70,13 @@ public:
 	StyleSheetNode* GetOrCreateChildNode(const StyleSheetNode& other);
 
 	/// Merges an entire tree hierarchy into our hierarchy.
-	bool MergeHierarchy(StyleSheetNode* node, int specificity_offset = 0);
+	void MergeHierarchy(StyleSheetNode* node, int specificity_offset = 0);
+	/// Copy this node including all descendent nodes.
+	UniquePtr<StyleSheetNode> DeepCopy(StyleSheetNode* parent = nullptr) const;
 	/// Recursively set structural volatility.
 	bool SetStructurallyVolatileRecursive(bool ancestor_is_structurally_volatile);
-	/// Builds up a style sheet's index recursively and optimizes some properties for faster retrieval.
-	void BuildIndexAndOptimizeProperties(StyleSheet::NodeIndex& styled_node_index, const StyleSheet& style_sheet);
+	/// Builds up a style sheet's index recursively.
+	void BuildIndex(StyleSheet::NodeIndex& styled_node_index) const;
 
 	/// Imports properties from a single rule definition into the node's properties and sets the
 	/// appropriate specificity on them. Any existing attributes sharing a key with a new attribute

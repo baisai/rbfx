@@ -1,11 +1,12 @@
 %module(naturalvar=1) ImGui
 
 %import "Urho3D.i"
+%include "generated/ImGui/_pre_include.i"
 
 // Speed boost
 %pragma(csharp) imclassclassmodifiers="[System.Security.SuppressUnmanagedCodeSecurity]\ninternal unsafe class"
 %pragma(csharp) moduleclassmodifiers="[System.Security.SuppressUnmanagedCodeSecurity]\npublic unsafe partial class"
-%typemap(csclassmodifiers) SWIGTYPE "public unsafe partial class"
+%typemap(csclassmodifiers) SWIGTYPE "[global::Urho3DNet.Preserve(AllMembers=true)]\npublic unsafe partial class"
 
 #define IMGUI_DISABLE_OBSOLETE_FUNCTIONS 1
 %{
@@ -42,7 +43,6 @@
 %ignore ImGuiViewportFlags;
 %ignore ImGuiWindowFlags;
 
-%include "_enums.i"
 %rename("%(camelcase)s", %$isenum) "";
 %rename("%(camelcase)s", %$isenumitem) "";
 %rename("%(camelcase)s", %$isvariable, %$ispublic) "";
@@ -62,6 +62,7 @@
 
 %ignore ImGui::SetAllocatorFunctions;
 %ignore ImGui::SaveIniSettingsToMemory;
+%ignore ImGui::LogTextV;
 %ignore ImGui::TextV;
 %ignore ImGui::TextColoredV;
 %ignore ImGui::TextDisabledV;
@@ -187,4 +188,3 @@ URHO3D_BINARY_COMPATIBLE_TYPE_EX(Urho3DNet.Color, ImColor, pod::float4);
 
 %include "../include/ImGui/imgui.h"
 //%include "../include/ImGui/imgui_internal.h"
-

@@ -20,10 +20,32 @@
 # THE SOFTWARE.
 #
 
-include(ucm)
-include(VSSolution)
+include(${CMAKE_CURRENT_LIST_DIR}/ucm.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/VSSolution.cmake)
 
 set(RBFX_CSPROJ_LIST "" CACHE STRING "A list of C# projects." FORCE)
+
+if (URHO3D_SDK)
+    # These will be re-set in engine build later, or used in SDK builds.
+    set (PACKAGE_TOOL    "${URHO3D_SDK}/bin/PackageTool")
+    set (SWIG_EXECUTABLE "${URHO3D_SDK}/bin/swig")
+endif ()
+
+if (WEB)
+    if (EMSCRIPTEN_EMCC_VERSION VERSION_LESS 2.0.17)
+        set (EMCC_WITH_SOURCE_MAPS_FLAG -g4)
+    else ()
+        set (EMCC_WITH_SOURCE_MAPS_FLAG -gsource-map)
+    endif ()
+endif ()
+
+# Prevent use of undefined build type, default to Debug. Done here instead of UrhoOptions.cmake so that user projects
+# can take advantage of this behavior as UrhoCommon.cmake will be included earlier, most likely before any targets are
+# defined.
+if (NOT MULTI_CONFIG_PROJECT AND NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Specifies the build type." FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS ${CMAKE_CONFIGURATION_TYPES})
+endif ()
 
 # Macro for setting symbolic link on platform that supports it
 function (create_symlink SOURCE DESTINATION)
@@ -99,21 +121,6 @@ function(vs_group_subdirectory_targets DIRECTORY FOLDER_NAME)
     endforeach()
 endfunction()
 
-function (add_msbuild_target)
-    if (URHO3D_CSHARP)
-        cmake_parse_arguments(MSBUILD "EXCLUDE_FROM_ALL" "TARGET;DEPENDS" "ARGS;BYPRODUCTS" ${ARGN})
-        add_custom_target(${MSBUILD_TARGET} ALL
-            COMMAND ${TERM_WORKAROUND} ${MSBUILD} ${MSBUILD_ARGS}
-            /p:CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR}/
-            /consoleloggerparameters:ErrorsOnly /nologo
-            BYPRODUCTS ${MSBUILD_BYPRODUCTS}
-            DEPENDS ${MSBUILD_DEPENDS})
-        if (MSBUILD_EXCLUDE_FROM_ALL)
-            set_target_properties(${MSBUILD_TARGET} PROPERTIES EXCLUDE_FROM_ALL ON EXCLUDE_FROM_DEFAULT_BUILD ON)
-        endif ()
-    endif ()
-endfunction ()
-
 macro (__TARGET_GET_PROPERTIES_RECURSIVE OUTPUT TARGET PROPERTY)
     get_target_property(values ${TARGET} ${PROPERTY})
     if (values)
@@ -138,16 +145,6 @@ function (add_target_csharp)
             add_dependencies(${CS_TARGET} ${CS_DEPENDS})
         endif ()
     else ()
-        if (MULTI_CONFIG_PROJECT)
-            set (CSHARP_CONFIG $<CONFIG>)
-        else ()
-            set (CSHARP_CONFIG ${CMAKE_BUILD_TYPE})
-        endif ()
-        add_msbuild_target(TARGET ${CS_TARGET} DEPENDS ${CS_DEPENDS} ARGS ${CS_PROJECT}
-            /p:Platform=${URHO3D_PLATFORM}
-            /p:Configuration=${CSHARP_CONFIG}
-            BYPRODUCTS ${CS_OUTPUT_FILE}
-        )
         list(APPEND RBFX_CSPROJ_LIST ${CS_PROJECT})
         set(RBFX_CSPROJ_LIST "${RBFX_CSPROJ_LIST}" CACHE STRING "A list of C# projects." FORCE)
     endif ()
@@ -191,13 +188,8 @@ function (csharp_bind_target)
         if (EQUALITY_INDEX EQUAL -1)
             set (item "${item}=1")
         endif ()
-        list(APPEND GENERATOR_OPTIONS "-D\"${item}\"")
+        list(APPEND GENERATOR_OPTIONS "-D${item}")
     endforeach()
-
-    if (URHO3D_NETFX_LEGACY_VERSION)
-        # TODO: Not great, little bit terrible.
-        list(APPEND GENERATOR_OPTIONS "-D\"URHO3D_NETFX_LEGACY_VERSION=1\"")
-    endif ()
 
     if (NOT BIND_NATIVE)
         set (BIND_NATIVE ${BIND_TARGET})
@@ -215,16 +207,13 @@ function (csharp_bind_target)
     )
 
     foreach(item ${OPTIONS})
-        list(APPEND GENERATOR_OPTIONS -O${item})
+        list(APPEND GENERATOR_OPTIONS ${item})
     endforeach()
 
     # Finalize option list
-    list (APPEND GENERATOR_OPTIONS ${BIND_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/CSharp/Swig)
-    set (CSHARP_BINDING_GENERATOR_OPTIONS "${CMAKE_CURRENT_BINARY_DIR}/generator_options_${BIND_TARGET}.txt")
-    file (WRITE ${CSHARP_BINDING_GENERATOR_OPTIONS} "")
-    foreach (opt ${GENERATOR_OPTIONS})
-        file(APPEND ${CSHARP_BINDING_GENERATOR_OPTIONS} "${opt}\n")
-    endforeach ()
+    string(REGEX REPLACE "[^;]+\\$<COMPILE_LANGUAGE:[^;]+;" "" GENERATOR_OPTIONS "${GENERATOR_OPTIONS}")    # COMPILE_LANGUAGE creates ambiguity, remove.
+    string(REPLACE ";" "\n" GENERATOR_OPTIONS "${GENERATOR_OPTIONS}")
+    file(GENERATE OUTPUT "GeneratorOptions_${BIND_TARGET}_$<CONFIG>.txt" CONTENT "${GENERATOR_OPTIONS}" CONDITION $<COMPILE_LANGUAGE:CXX>)
 
     set (SWIG_SYSTEM_INCLUDE_DIRS "${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES};${CMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES};${CMAKE_SYSTEM_INCLUDE_PATH};${CMAKE_EXTRA_GENERATOR_CXX_SYSTEM_INCLUDE_DIRS}")
     if (BIND_INCLUDE_DIRS)
@@ -250,6 +239,7 @@ function (csharp_bind_target)
     # cmake parameters. We exploit this to delete bindings upon configuration change and force their regeneration.
     if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
         file(REMOVE_RECURSE ${SWIG_MODULE_${BIND_TARGET}_OUTDIR})
+        file(MAKE_DIRECTORY ${SWIG_MODULE_${BIND_TARGET}_OUTDIR})
     endif ()
 
     swig_add_module(${BIND_TARGET} csharp ${BIND_SWIG})
@@ -268,7 +258,10 @@ function (csharp_bind_target)
             TARGET ${BIND_MANAGED_TARGET}
             PROJECT ${BIND_CSPROJ}
             OUTPUT ${NET_OUTPUT_DIRECTORY}/${BIND_MANAGED_TARGET}.dll)
-        add_dependencies(${BIND_MANAGED_TARGET} ${BIND_TARGET})
+        if (TARGET ${BIND_MANAGED_TARGET})
+            # Real C# target
+            add_dependencies(${BIND_MANAGED_TARGET} ${BIND_TARGET})
+        endif ()
         install (FILES ${NET_OUTPUT_DIRECTORY}/${BIND_MANAGED_TARGET}.dll DESTINATION ${DEST_LIBRARY_DIR_CONFIG})
     endif ()
 endfunction ()
@@ -278,9 +271,13 @@ function (create_pak PAK_DIR PAK_FILE)
 
     get_filename_component(NAME "${PAK_FILE}" NAME)
     if (CMAKE_CROSSCOMPILING)
-        set (DEPENDENCY Urho3D-Native)
+        if (TARGET Urho3D-Native)
+            set (DEPENDENCY Urho3D-Native)
+        endif ()
     else ()
-        set (DEPENDENCY PackageTool)
+        if (TARGET PackageTool)
+            set (DEPENDENCY PackageTool)
+        endif ()
     endif ()
 
     if (NOT PAK_NO_COMPRESS)
@@ -302,13 +299,6 @@ function (web_executable TARGET)
     # Use this macro on targets that should compile for web platform, possibly right after add_executable().
     if (WEB)
         set_target_properties (${TARGET} PROPERTIES SUFFIX .html)
-        if (EMSCRIPTEN_MEMORY_LIMIT)
-            math(EXPR EMSCRIPTEN_TOTAL_MEMORY "${EMSCRIPTEN_MEMORY_LIMIT} * 1024 * 1024")
-            target_link_libraries(${TARGET} PRIVATE "-s TOTAL_MEMORY=${EMSCRIPTEN_TOTAL_MEMORY}")
-        endif ()
-        if (EMSCRIPTEN_MEMORY_GROWTH)
-            target_link_libraries(${TARGET} PRIVATE "-s ALLOW_MEMORY_GROWTH=1")
-        endif ()
         target_link_libraries(${TARGET} PRIVATE "-s NO_EXIT_RUNTIME=1" "-s FORCE_FILESYSTEM=1")
         if (BUILD_SHARED_LIBS)
             target_link_libraries(${TARGET} PRIVATE "-s MAIN_MODULE=1")
@@ -333,6 +323,7 @@ function (package_resources_web)
     string(LENGTH "${PAK_RELATIVE_DIR}" PAK_RELATIVE_DIR_LEN)
 
     foreach (file ${PAK_FILES})
+        set_property(SOURCE ${file} PROPERTY GENERATED ON)
         string(SUBSTRING "${file}" ${PAK_RELATIVE_DIR_LEN} 999999 rel_file)
         set (PRELOAD_FILES ${PRELOAD_FILES} ${file}@${rel_file})
     endforeach ()
@@ -350,9 +341,13 @@ function (package_resources_web)
         COMMENT "Packaging ${PAK_OUTPUT}"
     )
     if (CMAKE_CROSSCOMPILING)
-        add_dependencies("${PAK_OUTPUT}" Urho3D-Native)
+        if (TARGET Urho3D-Native)
+            add_dependencies("${PAK_OUTPUT}" Urho3D-Native)
+        endif ()
     else ()
-        add_dependencies("${PAK_OUTPUT}" PackageTool)
+        if (TARGET PackageTool)
+            add_dependencies("${PAK_OUTPUT}" PackageTool)
+        endif ()
     endif ()
     if (PAK_INSTALL_TO)
         install(FILES "${PAK_RELATIVE_DIR}${PAK_OUTPUT}" "${PAK_RELATIVE_DIR}${PAK_OUTPUT}.data" DESTINATION ${PAK_INSTALL_TO})

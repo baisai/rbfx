@@ -24,16 +24,18 @@
 # stb_rectpack already included in the engine.
 
 file (GLOB SOURCE_FILES *.cpp *.h)
-list (APPEND SOURCE_FILES examples/imgui_impl_sdl.h examples/imgui_impl_sdl.cpp)
+list (APPEND SOURCE_FILES backends/imgui_impl_sdl.h backends/imgui_impl_sdl.cpp)
 if (WIN32 AND NOT URHO3D_OPENGL)
-    list (APPEND SOURCE_FILES examples/imgui_impl_win32.h examples/imgui_impl_win32.cpp)
+    if (NOT UWP)
+	    list (APPEND SOURCE_FILES backends/imgui_impl_win32.h backends/imgui_impl_win32.cpp)
+    endif ()
     if (URHO3D_D3D11)
-        list (APPEND SOURCE_FILES examples/imgui_impl_dx11.h examples/imgui_impl_dx11.cpp)
+        list (APPEND SOURCE_FILES backends/imgui_impl_dx11.h backends/imgui_impl_dx11.cpp)
     else ()
-        list (APPEND SOURCE_FILES examples/imgui_impl_dx9.h examples/imgui_impl_dx9.cpp)
+        list (APPEND SOURCE_FILES backends/imgui_impl_dx9.h backends/imgui_impl_dx9.cpp)
     endif ()
 else ()
-    list (APPEND SOURCE_FILES examples/imgui_impl_opengl3.h examples/imgui_impl_opengl3.cpp)
+    list (APPEND SOURCE_FILES backends/imgui_impl_opengl3.h backends/imgui_impl_opengl3.cpp)
 endif ()
 
 add_library (ImGui STATIC ${SOURCE_FILES})
@@ -41,18 +43,19 @@ target_link_libraries(ImGui PUBLIC SDL STB FreeType EASTL)
 if (URHO3D_OPENGL)
     if (MOBILE)
         # Mobiles do not need a loader. Lets game Dear ImGui here.
-        target_compile_definitions(ImGui PUBLIC -DIMGUI_IMPL_OPENGL_LOADER_CUSTOM=<stdlib.h>)
         if (URHO3D_GLES2)
             target_compile_definitions(ImGui PUBLIC -DIMGUI_IMPL_OPENGL_ES2=1)
         elseif (URHO3D_GLES3)
             target_compile_definitions(ImGui PUBLIC -DIMGUI_IMPL_OPENGL_ES3=1)
+        else ()
+            message (FATAL_ERROR "Graphics API misconfiguration.")
         endif ()
         if (APPLE)
             target_compile_definitions(ImGui PUBLIC -DTARGET_OS_IOS=1)
         endif ()
     else ()
         target_link_libraries(ImGui PUBLIC GLEW)
-        target_compile_definitions(ImGui PUBLIC -DIMGUI_IMPL_OPENGL_LOADER_CUSTOM=<GL/glew.h>)
+        target_compile_definitions(ImGui PUBLIC -DIMGUI_IMPL_OPENGL_LOADER_CUSTOM="GL/glew.h")
     endif ()
 else ()
     target_link_libraries(ImGui PUBLIC xinput)
@@ -64,11 +67,11 @@ target_include_directories(ImGui SYSTEM
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/ImGui>
            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/ImGuizmo>
-           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/examples>
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/backends>
 )
 
 if (BUILD_SHARED_LIBS)
-    target_compile_definitions(ImGui PRIVATE -DIMGUI_EXPORTS -DEASTL_EXPORTS -DEASTDC_EXPORTS -DEATHREAD_EXPORTS PUBLIC -DIMGUI_IMPORTS)
+    target_compile_definitions(ImGui PRIVATE -DIMGUI_EXPORTS -DEASTL_EXPORTS -DEASTDC_EXPORTS PUBLIC -DIMGUI_IMPORTS -DGLEW_BUILD=1)
 endif ()
 
 install (DIRECTORY include/ DESTINATION ${DEST_THIRDPARTY_HEADERS_DIR}/ FILES_MATCHING PATTERN *.h)

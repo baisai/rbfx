@@ -71,6 +71,9 @@ static void HandleIKLog(const char* msg)
 }
 #endif
 
+// Global context instance. Set in Context constructor.
+static Context* contextInstance = nullptr;
+
 void EventReceiverGroup::BeginSendEvent()
 {
     ++inSend_;
@@ -140,6 +143,9 @@ void RemoveNamedAttribute(ea::unordered_map<StringHash, ea::vector<AttributeInfo
 Context::Context() :
     eventHandler_(nullptr)
 {
+    assert(contextInstance == nullptr);
+    contextInstance = this;
+
 #ifdef __ANDROID__
     // Always reset the random seed on Android, as the Urho3D library might not be unloaded between runs
     SetRandomSeed(1);
@@ -167,13 +173,22 @@ Context::~Context()
     RemoveSubsystem("Renderer");
     RemoveSubsystem("Graphics");
 
-    subsystems_.clear();
+    subsystems_.Clear();
     factories_.clear();
 
     // Delete allocated event data maps
     for (auto i = eventDataMaps_.begin(); i != eventDataMaps_.end(); ++i)
         delete *i;
     eventDataMaps_.clear();
+
+    assert(contextInstance == this);
+    contextInstance = nullptr;
+}
+
+Context* Context::GetInstance()
+{
+    assert(contextInstance != nullptr);
+    return contextInstance;
 }
 
 SharedPtr<Object> Context::CreateObject(StringHash objectType)
@@ -233,7 +248,7 @@ void Context::RegisterSubsystem(Object* object, StringHash type)
         isTypeValid = typeInfo->GetType() == type;
 
     if (isTypeValid)
-        subsystems_[type] = object;
+        subsystems_.Add(type, object);
     else
         URHO3D_LOGERROR("Type supplied to RegisterSubsystem() does not belong to object inheritance hierarchy.");
 }
@@ -243,14 +258,12 @@ void Context::RegisterSubsystem(Object* object)
     if (!object)
         return;
 
-    subsystems_[object->GetType()] = object;
+    subsystems_.Add(object->GetType(), object);
 }
 
 void Context::RemoveSubsystem(StringHash objectType)
 {
-    auto i = subsystems_.find(objectType);
-    if (i != subsystems_.end())
-        subsystems_.erase(i);
+    subsystems_.Remove(objectType);
 }
 
 AttributeHandle Context::RegisterAttribute(StringHash objectType, const AttributeInfo& attr)
@@ -419,11 +432,7 @@ void Context::CopyBaseAttributes(StringHash baseType, StringHash derivedType)
 
 Object* Context::GetSubsystem(StringHash type) const
 {
-    auto i = subsystems_.find(type);
-    if (i != subsystems_.end())
-        return i->second;
-    else
-        return nullptr;
+    return subsystems_.Get(type);
 }
 
 const Variant& Context::GetGlobalVar(StringHash key) const
@@ -527,89 +536,6 @@ void Context::BeginSendEvent(Object* sender, StringHash eventType)
 void Context::EndSendEvent()
 {
     eventSenders_.pop_back();
-}
-
-void Context::RegisterSubsystem(Engine* subsystem)
-{
-    engine_ = subsystem;
-    RegisterSubsystem((Object*)subsystem);
-}
-
-void Context::RegisterSubsystem(Time* subsystem)
-{
-    time_ = subsystem;
-    RegisterSubsystem((Object*) subsystem);
-}
-
-void Context::RegisterSubsystem(WorkQueue* subsystem)
-{
-    workQueue_ = subsystem;
-    RegisterSubsystem((Object*) subsystem);
-}
-void Context::RegisterSubsystem(FileSystem* subsystem)
-{
-    fileSystem_ = subsystem;
-    RegisterSubsystem((Object*) subsystem);
-}
-#if URHO3D_LOGGING
-void Context::RegisterSubsystem(Log* subsystem)
-{
-    log_ = subsystem;
-    RegisterSubsystem((Object*) subsystem);
-}
-#endif
-void Context::RegisterSubsystem(ResourceCache* subsystem)
-{
-    cache_ = subsystem;
-    RegisterSubsystem((Object*) subsystem);
-}
-
-void Context::RegisterSubsystem(Localization* subsystem)
-{
-    l18n_ = subsystem;
-    RegisterSubsystem((Object*) subsystem);
-}
-#if URHO3D_NETWORK
-void Context::RegisterSubsystem(Network* subsystem)
-{
-    network_ = subsystem;
-    RegisterSubsystem((Object*) subsystem);
-}
-#endif
-void Context::RegisterSubsystem(Input* subsystem)
-{
-    input_ = subsystem;
-    RegisterSubsystem((Object*) subsystem);
-}
-
-void Context::RegisterSubsystem(Audio* subsystem)
-{
-    audio_ = subsystem;
-    RegisterSubsystem((Object*) subsystem);
-}
-
-void Context::RegisterSubsystem(UI* subsystem)
-{
-    ui_ = subsystem;
-    RegisterSubsystem((Object*) subsystem);
-}
-#if URHO3D_SYSTEMUI
-void Context::RegisterSubsystem(SystemUI* subsystem)
-{
-    systemUi_ = subsystem;
-    RegisterSubsystem((Object*) subsystem);
-}
-#endif
-void Context::RegisterSubsystem(Graphics* subsystem)
-{
-    graphics_ = subsystem;
-    RegisterSubsystem((Object*) subsystem);
-}
-
-void Context::RegisterSubsystem(Renderer* subsystem)
-{
-    renderer_ = subsystem;
-    RegisterSubsystem((Object*) subsystem);
 }
 
 }

@@ -163,7 +163,7 @@ typedef unsigned int uintptr_t;
 #define HAVE__FSEEKI64 1
 
 /* Enable various audio drivers */
-#define SDL_AUDIO_DRIVER_XAUDIO2	1
+#define SDL_AUDIO_DRIVER_WASAPI	1
 #define SDL_AUDIO_DRIVER_DISK	1
 #define SDL_AUDIO_DRIVER_DUMMY	1
 
@@ -212,5 +212,8 @@ typedef unsigned int uintptr_t;
 #ifndef _WIN64
 #define SDL_ASSEMBLY_ROUTINES	1
 #endif
+
+// rbfx: otherwise we get a build error
+#define SDL_SENSOR_DUMMY 1
 
 #endif /* SDL_config_winrt_h_ */

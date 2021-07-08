@@ -111,7 +111,7 @@
 
     %typemap(csdispose) TYPE %{
       ~$csclassname() {
-        if (!Expired) {
+        if (!IsExpired) {
           Dispose(false);
         }
       }
@@ -119,7 +119,7 @@
       public void Dispose() {
         // Free object when refcounting is not in use. If object had any references added through it's lifetime - last
         // ReleaseRef() will invoke Dispose(true) instead and this call will be noop.
-        if (!Expired && !IsScriptStrongRef())
+        if (!IsExpired && !IsScriptStrongRef())
           Dispose(true);
       }
     %}
@@ -131,7 +131,7 @@
         // FreeGCHandle();
         if (_swigCMemOwn) {
           if (Refs() > 0)
-            throw new global::System.InvalidOperationException("Objects with active references can not be disposed.");
+            throw new global::System.InvalidOperationException($"Objects of type {GetType().Name} with active references can not be disposed.");
           _swigCMemOwn = false;
           if (!IsScriptStrongRef())
             $imcall;
@@ -151,7 +151,7 @@
         $typemap(csdisposed_extra_early_optional, TYPE)
         if (_swigCMemOwn) {
           if (Refs() > 0)
-            throw new global::System.InvalidOperationException("Objects with active references can not be disposed.");
+            throw new global::System.InvalidOperationException($"Objects of type {GetType().Name} with active references can not be disposed.");
           _swigCMemOwn = false;
           if (!IsScriptStrongRef())
             $imcall;
@@ -170,7 +170,7 @@
     %typemap(in)     Urho3D::SharedPtr<TYPE> %{ $1 = Urho3D::SharedPtr<TYPE>($input); %}    // c to cpp
     %typemap(out)    Urho3D::SharedPtr<TYPE> %{ $result = $1.Detach(); %}          // cpp to c
     %typemap(out)    TYPE*          %{ $result = $1;                   %}          // cpp to c
-    %typemap(csin)   Urho3D::SharedPtr<TYPE> "$typemap(cstype, TYPE*).getCPtr($csinput).Handle"      // convert C# to pinvoke
+    %typemap(csin)   Urho3D::SharedPtr<TYPE> "global::$nspace.$typemap(cstype, TYPE*).getCPtr($csinput).Handle"      // convert C# to pinvoke
     %typemap(csout, excode=SWIGEXCODE) Urho3D::SharedPtr<TYPE> {                   // convert pinvoke to C#
         var ret = $typemap(cstype, TYPE*).wrap($imcall, true);$excode
         return ret;
@@ -211,9 +211,8 @@
 
 // TODO: Fix autoswig script to output these as well.
 URHO3D_REFCOUNTED(Urho3D::RefCounted);
-URHO3D_REFCOUNTED(Urho3D::ShaderProgram);
+%include "generated/Urho3D/_pre_refcounted.i";
 
-%include "_refcounted.i"
 //%interface_custom("%s", "I%s", Urho3D::RefCounted);
 %director Urho3D::RefCounted;
 %ignore Urho3D::RefCounted::RefCountPtr;

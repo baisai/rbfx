@@ -129,7 +129,6 @@ void MaterialInspector::RenderInspector(InspectArgs& args)
     // Alpha To Coverage
     {
         bool value = material->GetAlphaToCoverage();
-        ui::ItemAlign(ui::GetFrameHeight());
         ui::ItemLabel("Alpha To Coverage");
         if (ui::Checkbox("###Alpha To Coverage", &value))
         {
@@ -177,18 +176,6 @@ void MaterialInspector::RenderInspector(InspectArgs& args)
         {
             material->SetOcclusion(value);
             undo->Add<UndoResourceSetter<Material, bool>>(material->GetName(), !value, value, &Material::SetOcclusion);
-        }
-    }
-    // Specular
-    {
-        bool value = material->GetSpecular();
-        ui::ItemLabel("Specular");
-        // if (flags & ui::ItemLabelFlag::Right)
-        //     ui::ItemAlign(ui::GetFrameHeight());
-        if (ui::Checkbox("###Specular", &value))
-        {
-            material->SetSpecular(value);
-            undo->Add<UndoResourceSetter<Material, bool>>(material->GetName(), !value, value, &Material::SetSpecular);
         }
     }
     // Constant Bias

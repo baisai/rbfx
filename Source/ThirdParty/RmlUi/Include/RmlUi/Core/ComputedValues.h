@@ -60,7 +60,7 @@ struct NumberAuto {
 using Margin = LengthPercentageAuto;
 using Padding = LengthPercentage;
 
-enum class Display : uint8_t { None, Block, Inline, InlineBlock };
+enum class Display : uint8_t { None, Block, Inline, InlineBlock, Table, TableRow, TableRowGroup, TableColumn, TableColumnGroup, TableCell };
 enum class Position : uint8_t { Static, Relative, Absolute, Fixed };
 
 using Top = LengthPercentageAuto;
@@ -192,6 +192,8 @@ struct ComputedValues
 	WhiteSpace white_space = WhiteSpace::Normal;
 	WordBreak word_break = WordBreak::Normal;
 
+	LengthPercentage row_gap, column_gap;
+
 	String cursor;
 
 	Drag drag = Drag::None;
@@ -212,8 +214,8 @@ struct ComputedValues
 	TransitionList transition;
 	AnimationList animation;
 
-	DecoratorsPtr decorator;
-	FontEffectsPtr font_effect; // Sorted by layer first (back then front), then by declaration order.
+	bool has_decorator = false;
+	bool has_font_effect = false;
 };
 }
 

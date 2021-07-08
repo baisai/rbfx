@@ -91,9 +91,12 @@ using StringVector = ea::vector<ea::string>;
 /// Map of variants.
 using VariantMap = ea::unordered_map<StringHash, Variant>;
 
+/// Map from string to Variant.
+using StringVariantMap = ea::unordered_map<ea::string, Variant>;
+
 /// Deprecated. Use ByteVector instead.
 /// TODO: Rename all instances of VariantBuffer to ByteVector.
-using VariantBuffer = ea::vector<unsigned char>;
+using VariantBuffer = ByteVector;
 
 /// Typed resource reference.
 struct URHO3D_API ResourceRef
@@ -134,7 +137,7 @@ struct URHO3D_API ResourceRef
     /// Return hash value for HashSet & HashMap.
     unsigned ToHash() const
     {
-        return type_.ToHash() * 31 + ea::hash<ea::string>()(name_);
+        return type_.ToHash() * 31 + static_cast<unsigned>(ea::hash<ea::string>()(name_));
     }
 
     /// Object type.
@@ -171,7 +174,7 @@ struct URHO3D_API ResourceRefList
     /// Return hash value for HashSet & HashMap.
     unsigned ToHash() const
     {
-        return type_.ToHash() * 31 + ea::hash<StringVector>()(names_);
+        return type_.ToHash() * 31 + static_cast<unsigned>(ea::hash<StringVector>()(names_));
     }
 
     /// Object type.

@@ -30,20 +30,15 @@ namespace Urho3D
 {
 
 /// 2D indexing utilities for row-major 2D array.
-class URHO3D_API ArrayDimensions2D
+class ArrayDimensions2D
 {
 public:
     /// Construct default.
     ArrayDimensions2D() = default;
     /// Construct with given size.
     ArrayDimensions2D(int width, int height) : width_(width), height_(height) {}
-
-    /// Resize.
-    void Resize(int width, int height)
-    {
-        width_ = width;
-        height_ = height;
-    }
+    /// Construct with given size as vector (implicitly convertible).
+    ArrayDimensions2D(const IntVector2& size) : width_(size.x_), height_(size.y_) {}
 
     /// Return width.
     int GetWidth() const { return width_; }
@@ -88,6 +83,14 @@ public:
         return { static_cast<int>(index % width_), static_cast<int>(index / width_) };
     }
 
+protected:
+    /// Set dimensions.
+    void SetSize(int width, int height)
+    {
+        width_ = width;
+        height_ = height;
+    }
+
     /// Swap with other array dimensions.
     void Swap(ArrayDimensions2D& other)
     {
@@ -110,28 +113,60 @@ public:
     /// Construct default.
     Array2D() = default;
 
+    /// Construct with dimensions and default value.
+    explicit Array2D(const ArrayDimensions2D& dim)
+        : ArrayDimensions2D(dim)
+        , data_(GetCapacity())
+    {}
+
     /// Construct with dimensions and initial value.
-    explicit Array2D(const ArrayDimensions2D& dim, const T& value = {})
+    explicit Array2D(const ArrayDimensions2D& dim, const T& value)
         : ArrayDimensions2D(dim)
         , data_(GetCapacity(), value)
     {}
 
+    /// Construct with given size and default value.
+    Array2D(int width, int height)
+        : ArrayDimensions2D(width, height)
+        , data_(GetCapacity())
+    {}
+
     /// Construct with given size and initial value.
-    Array2D(int width, int height, const T& value = {})
+    Array2D(int width, int height, const T& value)
         : ArrayDimensions2D(width, height)
         , data_(GetCapacity(), value)
     {}
 
-    /// Resize array. All elements are reset to default value.
-    void Resize(const ArrayDimensions2D& dim, const T& value = {})
+    /// Reset array to empty.
+    void Reset()
     {
-        Resize(dim.GetWidth(), dim.GetHeight(), value);
+        Reset(0, 0);
     }
 
     /// Resize array. All elements are reset to default value.
-    void Resize(int width, int height, const T& value = {})
+    void Reset(const ArrayDimensions2D& dim)
     {
-        ArrayDimensions2D::Resize(width, height);
+        Reset(dim.GetWidth(), dim.GetHeight());
+    }
+
+    /// Resize array. All elements are reset to specified default value.
+    void Reset(const ArrayDimensions2D& dim, const T& value)
+    {
+        Reset(dim.GetWidth(), dim.GetHeight(), value);
+    }
+
+    /// Resize array. All elements are reset to default value.
+    void Reset(int width, int height)
+    {
+        ArrayDimensions2D::SetSize(width, height);
+        data_.clear();
+        data_.resize(GetCapacity());
+    }
+
+    /// Resize array. All elements are reset to specified default value.
+    void Reset(int width, int height, const T& value)
+    {
+        ArrayDimensions2D::SetSize(width, height);
         data_.clear();
         data_.resize(GetCapacity(), value);
     }

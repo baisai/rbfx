@@ -39,7 +39,7 @@
 #include <mach/mach_host.h>
 #elif defined(TVOS)
 extern "C" unsigned SDL_TVOS_GetActiveProcessorCount();
-#elif !defined(__linux__) && !defined(__EMSCRIPTEN__)
+#elif !defined(__linux__) && !defined(__EMSCRIPTEN__) && !defined(UWP)
 #include <LibCpuId/libcpuid.h>
 #endif
 
@@ -102,6 +102,11 @@ inline void SetFPUState(unsigned control)
 {
     __asm__ __volatile__ ("fldcw %0" : : "m" (control));
 }
+#endif
+
+// A workaround for UWP headers bug.
+#if defined(UWP) && !defined(RpcStringFree)
+extern "C" RPCRTAPI RPC_STATUS RPC_ENTRY RpcStringFreeA(RPC_CSTR* String);
 #endif
 
 #ifndef MINI_URHO
@@ -171,7 +176,7 @@ static void GetCPUData(struct CpuCoreCount* data)
     }
 }
 
-#elif !defined(__EMSCRIPTEN__) && !defined(TVOS)
+#elif !defined(__EMSCRIPTEN__) && !defined(TVOS) && !defined(UWP)
 static void GetCPUData(struct cpu_id_t* data)
 {
     if (cpu_identify(nullptr, data) < 0)
@@ -213,7 +218,7 @@ void ErrorExit(const ea::string& message, int exitCode)
 
 void OpenConsoleWindow()
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(UWP)
     if (consoleOpened)
         return;
 
@@ -229,7 +234,7 @@ void OpenConsoleWindow()
 void PrintUnicode(const ea::string& str, bool error)
 {
 #if !defined(__ANDROID__) && !defined(IOS) && !defined(TVOS)
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(UWP)
     // If the output stream has been redirected, use fprintf instead of WriteConsoleW,
     // though it means that proper Unicode output will not work
     FILE* out = error ? stderr : stdout;
@@ -361,7 +366,9 @@ ea::string GetConsoleInput()
     // When we are running automated tests, reading the console may block. Just return empty in that case
     return ret;
 #else
-#ifdef _WIN32
+#if defined(UWP)
+    // ...
+#elif defined(_WIN32)
     HANDLE input = GetStdHandle(STD_INPUT_HANDLE);
     HANDLE output = GetStdHandle(STD_OUTPUT_HANDLE);
     if (input == INVALID_HANDLE_VALUE || output == INVALID_HANDLE_VALUE)
@@ -452,7 +459,9 @@ ea::string GetPlatform()
 
 unsigned GetNumPhysicalCPUs()
 {
-#if defined(IOS)
+#if defined(UWP)
+    return 1;
+#elif defined(IOS)
     host_basic_info_data_t data;
     GetCPUData(&data);
 #if TARGET_OS_SIMULATOR
@@ -486,7 +495,9 @@ unsigned GetNumPhysicalCPUs()
 
 unsigned GetNumLogicalCPUs()
 {
-#if defined(IOS)
+#if defined(UWP)
+    return 1;
+#elif defined(IOS)
     host_basic_info_data_t data;
     GetCPUData(&data);
 #if TARGET_OS_SIMULATOR
@@ -569,7 +580,7 @@ ea::string GetLoginName()
     struct passwd *p = getpwuid(getuid());
     if (p != nullptr)
         return p->pw_name;
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(UWP)
     char name[UNLEN + 1];
     DWORD len = UNLEN + 1;
     if (GetUserName(name, &len))
@@ -601,7 +612,7 @@ ea::string GetHostName()
     char buffer[256];
     if (gethostname(buffer, 256) == 0)
         return buffer;
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(UWP)
     char buffer[MAX_COMPUTERNAME_LENGTH + 1];
     DWORD len = MAX_COMPUTERNAME_LENGTH + 1;
     if (GetComputerName(buffer, &len))

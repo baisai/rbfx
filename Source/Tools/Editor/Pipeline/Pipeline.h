@@ -26,8 +26,9 @@
 #include <EASTL/map.h>
 #include <EASTL/unordered_map.h>
 
+#include <Urho3D/Core/Signal.h>
 #include <Urho3D/Core/WorkQueue.h>
-#include <Urho3D/IO/FileWatcher.h>
+#include <Urho3D/IO/MultiFileWatcher.h>
 #include <Urho3D/IO/Archive.h>
 #include <Urho3D/Resource/XMLFile.h>
 #include <Urho3D/Scene/Serializable.h>
@@ -102,6 +103,9 @@ public:
     /// Watch directory for changed assets and automatically convert them.
     void EnableWatcher();
 
+    /// Emitted when changes are detected in any resource folder. Signal may fire multiple times per frame if multiple changes were detected (unlikely).
+    Signal<void(const FileChange& change)> onResourceChanged_;
+
 protected:
     /// Handles file watchers.
     void OnEndFrame(StringHash, VariantMap&);
@@ -115,7 +119,7 @@ protected:
     void RenderSettingsUI();
 
     /// List of file watchers responsible for watching game data folders for asset changes.
-    FileWatcher watcher_;
+    MultiFileWatcher watcher_;
     /// List of pipeline flavors.
     ea::vector<SharedPtr<Flavor>> flavors_{};
     /// A list of loaded assets.

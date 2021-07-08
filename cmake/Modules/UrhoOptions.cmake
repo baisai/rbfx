@@ -50,6 +50,10 @@ if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
     set (LINUX ON CACHE BOOL "" FORCE)
 endif ()
 
+if ("${CMAKE_SYSTEM_NAME}" STREQUAL "WindowsStore")
+    set (UWP ON CACHE BOOL "" FORCE)
+endif ()
+
 if (ANDROID OR IOS)
     set (MOBILE ON CACHE BOOL "" FORCE)
 elseif (APPLE OR "${CMAKE_SYSTEM_NAME}" MATCHES "Darwin")
@@ -60,15 +64,31 @@ if (APPLE AND NOT IOS)
     set (MACOS ON CACHE BOOL "" FORCE)
 endif ()
 
-if ((WIN32 OR LINUX OR MACOS) AND NOT WEB AND NOT MOBILE)
+# Even though UWP can run on desktop, we do not treat it as a desktop platform, because it behavres more like a mobile app.
+if ((WIN32 OR LINUX OR MACOS) AND NOT WEB AND NOT MOBILE AND NOT UWP)
     set (DESKTOP ON CACHE BOOL "" FORCE)
+endif ()
+
+if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten" AND NOT WEB)
+    # Compatibility with old toolchain.
+    set(WEB ON)
+    set(EMSCRIPTEN ON)
+    set(EMSCRIPTEN_EMCC_VERSION "${CMAKE_C_COMPILER_VERSION}")
+    set (EMRUN ${EMSCRIPTEN_ROOT_PATH}/emrun${TOOL_EXT}    CACHE PATH "emrun")
+    set (EMPACKAGER python ${EMSCRIPTEN_ROOT_PATH}/tools/file_packager.py CACHE PATH "file_packager.py")
+    set (EMBUILDER python ${EMSCRIPTEN_ROOT_PATH}/embuilder.py CACHE PATH "embuilder.py")
 endif ()
 
 # Build properties
 option(BUILD_SHARED_LIBS                        "Build engine as shared library."       ON)
 option(URHO3D_ENABLE_ALL                        "Enable (almost) all engine features."  ON)
 option(URHO3D_STATIC_RUNTIME                    "Link to static runtime"               OFF)
-set   (URHO3D_SSE             SSE2 CACHE STRING "Enable SSE instructions")
+if (UWP)
+    set (URHO3D_SSE OFF)
+    set (URHO3D_GRAPHICS_API D3D11)
+else ()
+    set (URHO3D_SSE           SSE2 CACHE STRING "Enable SSE instructions")
+endif ()
 if (${CMAKE_VERSION} VERSION_GREATER_EQUAL 3.16)
     cmake_dependent_option(URHO3D_PCH           "Enable precompiled header"                              OFF                  "NOT WEB;NOT ANDROID"           OFF)
 else ()
@@ -76,29 +96,36 @@ else ()
 endif ()
 
 # Subsystems
-cmake_dependent_option(URHO3D_GLOW               "Lightmapping subsystem enabled"                        ${URHO3D_ENABLE_ALL} "NOT WEB AND NOT MOBILE AND NOT MINGW" OFF)
+cmake_dependent_option(URHO3D_GLOW               "Lightmapping subsystem enabled"                        ${URHO3D_ENABLE_ALL} "DESKTOP;NOT MINGW"             OFF)
 option                (URHO3D_IK                 "Inverse kinematics subsystem enabled"                  ${URHO3D_ENABLE_ALL})
 option                (URHO3D_LOGGING            "Enable logging subsystem"                              ${URHO3D_ENABLE_ALL})
 option                (URHO3D_NAVIGATION         "Navigation subsystem enabled"                          ${URHO3D_ENABLE_ALL})
 cmake_dependent_option(URHO3D_NETWORK            "Networking subsystem enabled"                          ${URHO3D_ENABLE_ALL} "NOT WEB"                       OFF)
 option                (URHO3D_PHYSICS            "Physics subsystem enabled"                             ${URHO3D_ENABLE_ALL})
-cmake_dependent_option(URHO3D_PROFILING          "Profiler support enabled"                              ${URHO3D_ENABLE_ALL} "NOT WEB;NOT MINGW"             OFF)
+cmake_dependent_option(URHO3D_PROFILING          "Profiler support enabled"                              ${URHO3D_ENABLE_ALL} "NOT WEB;NOT MINGW;NOT UWP"     OFF)
 cmake_dependent_option(URHO3D_PROFILING_SYSTRACE "Profiler systrace support enabled"                     OFF                  "URHO3D_PROFILING"              OFF)
 option                (URHO3D_SYSTEMUI           "Build SystemUI subsystem"                              ${URHO3D_ENABLE_ALL})
 option                (URHO3D_URHO2D             "2D subsystem enabled"                                  ${URHO3D_ENABLE_ALL})
 option                (URHO3D_RMLUI              "HTML subset UIs via RmlUI middleware"                  ${URHO3D_ENABLE_ALL})
 
 # Features
+set (URHO3D_CSHARP_TOOLS ${URHO3D_CSHARP})
 cmake_dependent_option(URHO3D_CSHARP             "Enable C# support"                                     OFF                  "BUILD_SHARED_LIBS;NOT MINGW"   OFF)
+if (NOT MINI_URHO)
+    # Keep C# tools in minimal build if we requested them. This is a workaround for building swig as a native tool during crosscompiling.
+	# Otherwise it would fail because we build tools with -DBUILD_SHARED_LIBS=OFF due to cryptic build errors, and C# is disabled in static builds.
+    set (URHO3D_CSHARP_TOOLS ${URHO3D_CSHARP})
+endif ()
 # Valid values at https://docs.microsoft.com/en-us/dotnet/standard/frameworks
-set(URHO3D_NETFX net471 CACHE STRING "TargetFramework value for .NET projects")
-set_property(CACHE URHO3D_NETFX PROPERTY STRINGS net46 net461 net462 net47 net471 net472 net48)
-cmake_dependent_option(URHO3D_FILEWATCHER        "Watch filesystem for resource changes"                 ${URHO3D_ENABLE_ALL} "URHO3D_THREADING"              OFF)
+set(URHO3D_NETFX netstandard2.0 CACHE STRING "TargetFramework value for .NET libraries")
+set_property(CACHE URHO3D_NETFX PROPERTY STRINGS netstandard2.0 netstandard2.1)
+set(URHO3D_NETFX_RUNTIME_VERSION OFF CACHE STRING "Version of runtime to use.")
+cmake_dependent_option(URHO3D_FILEWATCHER        "Watch filesystem for resource changes"                 ${URHO3D_ENABLE_ALL} "URHO3D_THREADING;NOT UWP"      OFF)
 option                (URHO3D_SPHERICAL_HARMONICS "Use spherical harmonics for ambient lighting"         ON)
 option                (URHO3D_HASH_DEBUG         "Enable StringHash name debugging"                      ${URHO3D_ENABLE_ALL}                                    )
 option                (URHO3D_MONOLITHIC_HEADER  "Create Urho3DAll.h which includes all engine headers." OFF                                                     )
-cmake_dependent_option(URHO3D_MINIDUMPS          "Enable writing minidumps on crash"                     ${URHO3D_ENABLE_ALL} "MSVC"                          OFF)
-cmake_dependent_option(URHO3D_PLUGINS            "Enable plugins"                                        ${URHO3D_ENABLE_ALL} "NOT WEB"                       OFF)
+cmake_dependent_option(URHO3D_MINIDUMPS          "Enable writing minidumps on crash"                     ${URHO3D_ENABLE_ALL} "MSVC;NOT UWP"                  OFF)
+cmake_dependent_option(URHO3D_PLUGINS            "Enable plugins"                                        ${URHO3D_ENABLE_ALL} "NOT WEB;NOT UWP"               OFF)
 cmake_dependent_option(URHO3D_THREADING          "Enable multithreading"                                 ${URHO3D_ENABLE_ALL} "NOT WEB"                       OFF)
 option                (URHO3D_WEBP               "WEBP support enabled"                                  ${URHO3D_ENABLE_ALL}                                    )
 # Web
@@ -108,8 +135,8 @@ set(EMSCRIPTEN_TOTAL_MEMORY 128MB CACHE STRING  "Memory limit in megabytes. Set 
 
 # Misc
 cmake_dependent_option(URHO3D_PLAYER            "Build player application"                              ${URHO3D_ENABLE_ALL} "NOT WEB"                       OFF)
-cmake_dependent_option(URHO3D_EXTRAS            "Build extra tools"                                     ${URHO3D_ENABLE_ALL} "NOT WEB;NOT MOBILE"            OFF)
-cmake_dependent_option(URHO3D_TOOLS             "Tools enabled"                                         ${URHO3D_ENABLE_ALL} "NOT WEB;NOT MOBILE"            OFF)
+cmake_dependent_option(URHO3D_EXTRAS            "Build extra tools"                                     ${URHO3D_ENABLE_ALL} "NOT WEB;NOT MOBILE;NOT UWP"    OFF)
+cmake_dependent_option(URHO3D_TOOLS             "Tools enabled"                                         ${URHO3D_ENABLE_ALL} "DESKTOP"                       OFF)
 option(URHO3D_SAMPLES                           "Build samples"                                         OFF)
 option(URHO3D_DOCS                              "Build documentation."                                  OFF)
 cmake_dependent_option(URHO3D_MERGE_STATIC_LIBS "Merge third party dependency libs to Urho3D.a"         OFF "NOT BUILD_SHARED_LIBS"                          OFF)
@@ -150,14 +177,19 @@ elseif (URHO3D_TOOLS AND NOT MINI_URHO)
     set (URHO3D_HASH_DEBUG ON)
 endif ()
 
-if (WEB AND URHO3D_CSHARP)
-    message(WARNING "C# is not supported in this configuration.")
-    set (URHO3D_CSHARP OFF)
-endif ()
-
-if (WEB AND BUILD_SHARED_LIBS)
-    set (BUILD_SHARED_LIBS OFF)
-    message(WARNING "Shared builds unsupported when compiling with emscripten")     # For now.
+if (WEB)
+    if (URHO3D_CSHARP)
+        message(WARNING "C# is not supported in this configuration.")
+        set (URHO3D_CSHARP OFF)
+    endif ()
+    if (BUILD_SHARED_LIBS)
+        set (BUILD_SHARED_LIBS OFF)
+        message(WARNING "Shared builds unsupported when compiling with emscripten")     # For now.
+    endif ()
+    if (NOT URHO3D_PACKAGING)
+        # Web builds do not function without data packaging.
+        set (URHO3D_PACKAGING ON)
+    endif ()
 endif ()
 
 if (ANDROID)

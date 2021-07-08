@@ -32,6 +32,7 @@ namespace Urho3D
 {
 
 class Asset;
+class FileChange;
 
 struct ResourceContextMenuArgs
 {
@@ -59,7 +60,7 @@ public:
     bool SerializeSelection(Archive& archive) override;
 
     /// Signal set when user right-clicks a resource or folder.
-    Signal<ResourceContextMenuArgs> resourceContextMenu_;
+    Signal<void(const ResourceContextMenuArgs&)> resourceContextMenu_;
 
 protected:
     ///
@@ -68,6 +69,10 @@ protected:
     ea::string GetNewResourcePath(const ea::string& name);
     /// Select current item in attribute inspector.
     void SelectCurrentItemInspector();
+    ///
+    void OnEndFrame(StringHash, VariantMap&);
+    ///
+    void OnResourceUpdated(const FileChange& change);
     ///
     void ScanAssets();
     ///
@@ -99,8 +104,6 @@ protected:
     bool rescan_ = true;
     /// Flag requesting to scroll to selection on next frame.
     bool scrollToCurrent_ = false;
-    /// Timer for periodic selected resource path rescan.
-    Timer rescanTimer_;
     /// State cache.
     ValueCache cache_{context_};
     /// Frame at which rename started. Non-zero means rename is in-progress.

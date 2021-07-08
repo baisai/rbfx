@@ -163,6 +163,7 @@ public:
     /// Destruct.
     ~Material() override;
     /// Register object factory.
+    /// @nobind
     static void RegisterObject(Context* context);
 
     /// Load resource from stream. May be called from a worker thread. Return true if successful.
@@ -171,6 +172,8 @@ public:
     bool EndLoad() override;
     /// Save resource. Return true if successful.
     bool Save(Serializer& dest) const override;
+
+    using Resource::Load;
 
     /// Load from an XML element. Return true if successful.
     bool Load(const XMLElement& source);
@@ -326,9 +329,6 @@ public:
 
     /// Return whether should render specular.
     bool GetSpecular() const { return specular_; }
-
-    /// Set whether should render specular.
-    void SetSpecular(bool specular) { specular_ = specular; }
 
     /// Return the scene associated with the material for shader parameter animation updates.
     /// @property
